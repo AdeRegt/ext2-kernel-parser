@@ -1,0 +1,3 @@
+#!/bin/bash
+gcc main.c -o ./ext2 
+sudo ./ext2 /dev/sda
