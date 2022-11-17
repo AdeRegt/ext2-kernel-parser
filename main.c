@@ -26,7 +26,23 @@ typedef struct {
 }__attribute__((packed)) MBR_DISK;
 
 typedef struct {
-    
+    uint8_t partition_type_GUID[16];
+    uint8_t partition_GUID[16];
+    uint64_t lba_start;
+    uint64_t lba_end;
+    uint64_t attributes;
+    uint8_t name[72];
+}__attribute__((packed)) EFI_ENTRY;
+
+typedef struct {
+    EFI_ENTRY e1;
+    EFI_ENTRY e2;
+    EFI_ENTRY e3;
+    EFI_ENTRY e4;
+    EFI_ENTRY e5;
+    EFI_ENTRY e6;
+    EFI_ENTRY e7;
+    EFI_ENTRY e8;
 }__attribute__((packed)) EFI_DISK;
 
 FILE *bestand;
@@ -53,13 +69,47 @@ void dump_mbr_table(MBR_DISK *disc){
     dump_mbr_entry((MBR_ENTRY*)&disc->e4);
 }
 
+void dump_efi_entry(EFI_ENTRY *ent){
+    printf("efi: name:");
+    for(int i = 0 ; i < 72 ; i++){
+        printf("%c",ent->name[i]);
+    }
+    printf(" , start: %d end: %d type: ",ent->lba_start,ent->lba_end);
+    printf("%x%x%x%x-%x%x-%x%x-%x%x-%x%x%x%x%x%x ",ent->partition_type_GUID[3],ent->partition_type_GUID[2],ent->partition_type_GUID[1],ent->partition_type_GUID[0],ent->partition_type_GUID[5],ent->partition_type_GUID[4],ent->partition_type_GUID[7],ent->partition_type_GUID[6],ent->partition_type_GUID[8],ent->partition_type_GUID[9],ent->partition_type_GUID[10],ent->partition_type_GUID[11],ent->partition_type_GUID[12],ent->partition_type_GUID[13],ent->partition_type_GUID[14],ent->partition_type_GUID[15]);
+    printf("\n");
+}
+
+void dump_efi_table(EFI_DISK *disc){
+    dump_efi_entry((EFI_ENTRY*)&disc->e1);
+    dump_efi_entry((EFI_ENTRY*)&disc->e2);
+    dump_efi_entry((EFI_ENTRY*)&disc->e3);
+    dump_efi_entry((EFI_ENTRY*)&disc->e4);
+    dump_efi_entry((EFI_ENTRY*)&disc->e5);
+    dump_efi_entry((EFI_ENTRY*)&disc->e6);
+    dump_efi_entry((EFI_ENTRY*)&disc->e7);
+    dump_efi_entry((EFI_ENTRY*)&disc->e8);
+}
+
+void handle_ext_partition_from_efi(EFI_ENTRY* efi){
+    
+}
+
 void handle_efi_system_partition_from_mbr(MBR_ENTRY *mbr){
     uint8_t *efi_1 = readSector(mbr->LBA_start,1);
     if(efi_1[0x48]!=2){
         printf("efi: Invalid index of EFI partition table (system is not compatible)\n");
         return;
     }
-    EFI_DISK *efi = readSector(mbr->LBA_start+1,1);
+    EFI_DISK *efi = readSector(mbr->LBA_start+1,2);
+    printf("drv: EFI-partition-entry: %d total entry: %d \n",sizeof(EFI_ENTRY),sizeof(EFI_DISK));
+    dump_efi_table(efi);
+    for(int i = 0 ; i < 7 ; i++){
+        EFI_ENTRY e = ((EFI_ENTRY*)efi)[i];
+        if(e.partition_type_GUID[0]==0xAF){
+            printf("efi: EXT entry found!\n");
+            handle_ext_partition_from_efi((EFI_ENTRY*)&e);
+        }
+    }
 }
 
 int main(int argc,char** argv){
